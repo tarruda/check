@@ -18,7 +18,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include "config.h"
+#include "../lib/libcompat.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -54,6 +54,11 @@ void srunner_fprint (FILE *file, SRunner *sr, enum print_output print_mode)
 static void srunner_fprint_summary (FILE *file, SRunner *sr,
 				    enum print_output print_mode)
 {
+#if ENABLE_SUBUNIT
+  if (print_mode == CK_SUBUNIT)
+      return;
+#endif
+
   if (print_mode >= CK_MINIMAL) {
     char *str;
 
@@ -68,6 +73,11 @@ static void srunner_fprint_results (FILE *file, SRunner *sr,
 				    enum print_output print_mode)
 {
   List *resultlst;
+
+#if ENABLE_SUBUNIT
+  if (print_mode == CK_SUBUNIT)
+      return;
+#endif
   
   resultlst = sr->resultlst;
   
@@ -92,7 +102,7 @@ void tr_fprint (FILE *file, TestResult *tr, enum print_output print_mode)
   }
 }
 
-void tr_xmlprint (FILE *file, TestResult *tr, enum print_output print_mode)
+void tr_xmlprint (FILE *file, TestResult *tr, enum print_output print_mode CK_ATTRIBUTE_UNUSED)
 {
   char result[10];
   char *path_name;

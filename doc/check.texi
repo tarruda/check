@@ -13,7 +13,7 @@ This manual is for Check
 (version @value{VERSION}, @value{UPDATED}),
 a unit testing framework for C.
 
-Copyright @copyright{} 2001--2006 Arien Malec, Chris Pickett, Fredrik
+Copyright @copyright{} 2001--2009 Arien Malec, Chris Pickett, Fredrik
 Hugosson, and Robert Lemmen.
 
 @quotation
@@ -39,6 +39,7 @@ entitled ``@acronym{GNU} Free Documentation License.''
 @author Chris Pickett
 @author Fredrik Hugosson
 @author Robert Lemmen
+@author Robert Collins
 
 @c The following two commands start the copyright page.
 @page
@@ -93,11 +94,12 @@ Advanced Features
 * No Fork Mode::                
 * Test Fixtures::               
 * Multiple Suites in one SRunner::  
-* Testing Signal Handling::     
+* Testing Signal Handling and Exit Values::  
 * Looping Tests::               
 * Test Timeouts::               
 * Determining Test Coverage::   
 * Test Logging::                
+* Subunit Support::             
 
 Test Fixtures
 
@@ -224,14 +226,13 @@ expressed interest in adding such a feature.  See the
 @uref{http://aceunit.sourceforge.net/, AceUnit homepage}.
 
 @item GNU Autounit
-Much along the same lines as Check, including forking to run unit
-tests in a separate address space (in fact, the original author of
-Check borrowed the idea from @acronym{GNU} Autounit).  @acronym{GNU}
-Autounit uses GLib extensively, which means that linking and such need
-special options, but this may not be a big problem to you, especially
-if you are already using GTK or GLib.  See the
-@uref{http://www.recursism.com/s2004/zp/products/gnu+autounit, GNU
-Autounit homepage}.
+Much along the same lines as Check, including forking to run unit tests
+in a separate address space (in fact, the original author of Check
+borrowed the idea from @acronym{GNU} Autounit).  @acronym{GNU} Autounit
+uses GLib extensively, which means that linking and such need special
+options, but this may not be a big problem to you, especially if you are
+already using GTK or GLib.  See the @uref{http://autounit.tigris.org/,
+GNU Autounit homepage}.
 
 @item cUnit
 Also uses GLib, but does not fork to protect the address space of unit
@@ -244,6 +245,11 @@ Standard C, with plans for a Win32 GUI implementation.  Does not
 currently fork or otherwise protect the address space of unit tests.
 In early development.  See the @uref{http://cunit.sourceforge.net,
 CUnit homepage}.
+
+@item CuTest
+A simple framework with just one .c and one .h file that you drop into
+your source tree.  See the @uref{http://cutest.sourceforge.net, CuTest
+homepage}.
 
 @item CppUnit
 The premier unit testing framework for C++; you can also use it to test C
@@ -352,7 +358,7 @@ Note that this is not the place to explain how Autotools works.  If
 you need help understanding what's going on beyond the explanations
 here, the best place to start is probably Alexandre Duret-Lutz's
 excellent
-@uref{http://www-src.lip6.fr/homepages/Alexandre.Duret-Lutz/autotools.html,
+@uref{http://www.lrde.epita.fr/~adl/autotools.html,
 Autotools tutorial}.
 
 The examples in this section are part of the Check distribution; you
@@ -489,13 +495,12 @@ Here are the changes to @file{check_money.c} for our first unit test:
 @findex fail_unless()
 A unit test should just chug along and complete.  If it exits early,
 or is signaled, it will fail with a generic error message.  (Note: it
-is conceivable that you expect an early exit, or a signal.  There is
-currently nothing in Check to specifically assert that we should
-expect either --- if that is valuable, it may be worth while adding to
-Check.)  If we want to get some information about what failed, we need
-to use the @code{fail_unless()} function.  The function (actually a
-macro) takes a first Boolean argument, and an error message to send if
-the condition is not true.
+is conceivable that you expect an early exit, or a signal and there is
+functionality in Check to specifically assert that we should expect a
+signal or an early exit.)  If we want to get some information
+about what failed, we need to use the @code{fail_unless()} function.  The
+function (actually a macro) takes a first Boolean argument, and an error
+message to send if the condition is not true.
 
 @findex fail()
 If the Boolean argument is too complicated to elegantly express within
@@ -690,6 +695,11 @@ Gets the print mode from the environment variable @code{CK_VERBOSITY},
 which can have the values "silent", "minimal", "normal", "verbose". If
 the variable is not found or the value is not recognized, the print
 mode is set to @code{CK_NORMAL}.
+
+@vindex CK_SUBUNIT
+@item CK_SUBUNIT
+Prints running progress through the @uref{https://launchpad.net/subunit/,
+subunit} test runner protocol. See 'subunit support' under the Advanced Features section for more information.
 @end table
 
 With the @code{CK_NORMAL} flag specified in our @code{main()}, let's
@@ -779,11 +789,12 @@ easier for the developer to write, run, and analyse tests.
 * No Fork Mode::                
 * Test Fixtures::               
 * Multiple Suites in one SRunner::  
-* Testing Signal Handling::     
+* Testing Signal Handling and Exit Values::  
 * Looping Tests::               
 * Test Timeouts::               
 * Determining Test Coverage::   
 * Test Logging::                
+* Subunit Support::             
 @end menu
 
 @node Running Multiple Cases, No Fork Mode, Advanced Features, Advanced Features
@@ -967,7 +978,7 @@ or unchecked fixtures, the unit tests for the test case, and the
 @code{teardown()} function for the fixture will not be run.  A fixture
 error will be created and reported to the @code{SRunner}.
 
-@node Multiple Suites in one SRunner, Testing Signal Handling, Test Fixtures, Advanced Features
+@node Multiple Suites in one SRunner, Testing Signal Handling and Exit Values, Test Fixtures, Advanced Features
 @section Multiple Suites in one SRunner
 
 In a large program, it will be convenient to create multiple suites,
@@ -1011,8 +1022,8 @@ srunner_add_suite (sr, make_pack_suite ());
 @end verbatim
 @end example
 
-@node Testing Signal Handling, Looping Tests, Multiple Suites in one SRunner, Advanced Features
-@section Testing Signal Handling
+@node Testing Signal Handling and Exit Values, Looping Tests, Multiple Suites in one SRunner, Advanced Features
+@section Testing Signal Handling and Exit Values
 
 @findex tcase_add_test_raise_signal()
 
@@ -1025,7 +1036,18 @@ is received this is logged as an error.
 
 The signal handling functionality only works in CK_FORK mode.
 
-@node Looping Tests, Test Timeouts, Testing Signal Handling, Advanced Features
+@findex tcase_add_exit_test()
+
+To enable testing of expected exits, there is a function
+@code{tcase_add_exit_test()} which is used instead of @code{tcase_add_test()}.
+This function takes an additional expected exit value argument,
+specifying a value that the test is expected to exit with.  If the test
+exits with any other value this is logged as a failure.  If the test exits
+early this is logged as an error.
+
+The exit handling functionality only works in CK_FORK mode.
+
+@node Looping Tests, Test Timeouts, Testing Signal Handling and Exit Values, Advanced Features
 @section Looping Tests
 
 Looping tests are tests that are called with a new context for each
@@ -1083,6 +1105,7 @@ forking.  This means that only the first error will be shown.
 
 @findex tcase_set_timeout()
 @vindex CK_DEFAULT_TIMEOUT
+@vindex CK_TIMEOUT_MULTIPLIER
 To be certain that a test won't hang indefinitely, all tests are run
 with a timeout, the default being 4 seconds.  If the test is not
 finished within that time, it is killed and logged as an error.
@@ -1091,8 +1114,11 @@ The timeout for a specific test case, which may contain multiple unit
 tests, can be changed with the @code{tcase_set_timeout()} function.
 The default timeout used for all test cases can be changed with the
 environment variable @code{CK_DEFAULT_TIMEOUT}, but this will not
-override an explicitly set timeout.  All timeout arguments are in
-seconds and a timeout of 0 seconds turns off the timeout
+override an explicitly set timeout.  Another way to change the timeout
+length is to use the @code{CK_TIMEOUT_MULTIPLIER} environment variable,
+which multiplies all timeouts, including those set with
+@code{tcase_set_timeout()}, with the supplied integer value. All timeout
+arguments are in seconds and a timeout of 0 seconds turns off the timeout
 functionality.
 
 Test timeouts are only available in CK_FORK mode.
@@ -1156,7 +1182,7 @@ As you can see this is an annotated source file with three columns:
 usage information, line numbers, and the original source.  The usage
 information in the first column can either be '-', which means that
 this line does not contain code that could be executed; '#####', which
-means this line was never executed altough it does contain
+means this line was never executed although it does contain
 code---these are the lines that are probably most interesting for you;
 or a number, which indicates how often that line was executed.
 
@@ -1165,7 +1191,7 @@ how determining test coverage generally works, and how it can help
 you.  For more information or help with other compilers, please refer
 to the relevant manuals.
 
-@node Test Logging,  , Determining Test Coverage, Advanced Features
+@node Test Logging, Subunit Support, Determining Test Coverage, Advanced Features
 @section Test Logging
 
 @findex srunner_set_log()
@@ -1267,6 +1293,50 @@ of the same log output as before but in XML:
 </testsuites>
 @end verbatim
 @end example
+
+@node Subunit Support,  , Test Logging, Advanced Features
+@section Subunit Support
+
+Check supports running test suites with subunit output. This can be useful to
+combine test results from multiple languages, or to perform programmatic
+analysis on the results of multiple check test suites or otherise handle test
+results in a programmatic manner. Using subunit with check is very straight
+forward. There are two steps:
+1) In your check test suite driver pass 'CK_SUBUNIT' as the output mode
+for your srunner.
+@example
+@verbatim
+SRunner *sr;
+sr = srunner_create (make_s1_suite ());
+srunner_add_suite (sr, make_s2_suite ());
+srunner_run_all (sr, CK_SUBUNIT);
+@end verbatim
+@end example
+2) Setup your main language test runner to run your check based test
+executable. For instance using python:
+@example
+@verbatim
+
+import subunit
+
+class ShellTests(subunit.ExecTestCase):
+    """Run some tests from the C codebase."""
+
+    def test_group_one(self):
+        """./foo/check_driver"""
+
+    def test_group_two(self):
+        """./foo/other_driver"""
+@end verbatim
+@end example
+
+In this example, running the test suite ShellTests in python (using any test
+runner - unittest.py, tribunal, trial, nose or others) will run
+./foo/check_driver and ./foo/other_driver and report on their result.
+
+Subunit is hosted on launchpad - the @uref{https://launchpad.net/subunit/,
+subunit} project there contains bug tracker, future plans, and source code
+control details.
 
 @node Conclusion and References, AM_PATH_CHECK, Advanced Features, Top
 @chapter Conclusion and References

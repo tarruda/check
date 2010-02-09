@@ -18,7 +18,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include "config.h"
+#include "../lib/libcompat.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -46,48 +46,6 @@ static void tcase_add_fixture (TCase *tc, SFun setup, SFun teardown,
 static void tr_init (TestResult *tr);
 static void suite_free (Suite *s);
 static void tcase_free (TCase *tc);
-
-#if HAVE_CONFIG_H
-#include <config.h>
-#endif
-#undef malloc
-#undef realloc
-
-#include <sys/types.h>
-
-void *malloc (size_t n);
-void *realloc (void *p, size_t n);
-
-void *rpl_malloc (size_t n);
-void *rpl_realloc (void *p, size_t n);
-
-/* Allocate an N-byte block of memory from the heap. If N is zero,
-   allocate a 1-byte block. */
-void *
-rpl_malloc (size_t n)
-{
-  if (n == 0)
-    n = 1;
-  return malloc (n);
-} 
-
-/* AC_FUNC_REALLOC in configure defines realloc to rpl_realloc if
-   realloc(0,0) is NULL to make it GNU compatible and always return a
-   valid pointer, same for AC_FUNC_MALLOC, malloc, and rpl_malloc.
-   rpl means `replacement'.
-
-   If this ever turns out to be a problem, it might be easiest to just
-   kill the configure macro calls.
- */
-void *
-rpl_realloc (void *p, size_t n)
-{
-  if (n == 0)
-    n = 1;
-  if (p == 0)
-    return malloc (n);
-  return realloc (p, n);
-}
 
 Suite *suite_create (const char *name)
 {
@@ -131,7 +89,15 @@ TCase *tcase_create (const char *name)
       timeout = tmp;
     }
   }
-  
+
+  env = getenv("CK_TIMEOUT_MULTIPLIER");
+  if (env != NULL) {
+    int tmp = atoi(env);
+    if (tmp >= 0) {
+      timeout = timeout * tmp;
+    }
+  }  
+
   tc->timeout = timeout;
   tc->tflst = check_list_create();
   tc->unch_sflst = check_list_create();
@@ -166,7 +132,7 @@ void suite_add_tcase (Suite *s, TCase *tc)
   list_add_end (s->tclst, tc);
 }
 
-void _tcase_add_test (TCase *tc, TFun fn, const char *name, int _signal, int start, int end)
+void _tcase_add_test (TCase *tc, TFun fn, const char *name, int _signal, int allowed_exit_value, int start, int end)
 {
   TF * tf;
   if (tc == NULL || fn == NULL || name == NULL)
@@ -176,6 +142,7 @@ void _tcase_add_test (TCase *tc, TFun fn, const char *name, int _signal, int sta
   tf->loop_start = start;
   tf->loop_end = end;
   tf->signal = _signal; /* 0 means no signal expected */
+  tf->allowed_exit_value = allowed_exit_value; /* 0 is default successful exit */
   tf->name = name;
   list_add_end (tc->tflst, tf);
 }
@@ -221,11 +188,19 @@ static void tcase_add_fixture (TCase *tc, SFun setup, SFun teardown,
 
 void tcase_set_timeout (TCase *tc, int timeout)
 {
-  if (timeout >= 0)
+  if (timeout >= 0) {
+    char *env = getenv("CK_TIMEOUT_MULTIPLIER");
+    if (env != NULL) {
+      int tmp = atoi(env);
+      if (tmp >= 0) {
+        timeout = timeout * tmp;
+      }
+    }
     tc->timeout = timeout;
+  }
 }
 
-void tcase_fn_start (const char *fname, const char *file, int line)
+void tcase_fn_start (const char *fname CK_ATTRIBUTE_UNUSED, const char *file, int line)
 {
   send_ctx_info (CK_CTX_TEST);
   send_loc_info (file, line);
@@ -253,8 +228,11 @@ void _fail_unless (int result, const char *file,
     vsnprintf(buf, BUFSIZ, msg, ap);
     va_end(ap);
     send_failure_info (buf);
-    if (cur_fork_status() == CK_FORK)
+    if (cur_fork_status() == CK_FORK) {
+#ifdef _POSIX_VERSION
       exit(1);
+#endif /* _POSIX_VERSION */
+    }
   }
 }
 
@@ -276,6 +254,9 @@ SRunner *srunner_create (Suite *s)
 
 void srunner_add_suite (SRunner *sr, Suite *s)
 {
+  if (s == NULL)
+    return;
+
   list_add_end(sr->slst, s);
 }
 

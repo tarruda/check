@@ -1,31 +1,31 @@
+#include "../lib/libcompat.h"
+
+#include <sys/types.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <check.h>
 #include "check_check.h"
 
-
-
-
-
-
+#define _STR(Y) #Y
 
 
 START_TEST(test_lno)
 {
-  fail("Failure expected"); /* line 18*/
+  fail("Failure expected");
+  #define LINENO_lno _STR(__LINE__)
 }
 END_TEST
 
 START_TEST(test_mark_lno)
 {
-  mark_point(); /* line 24*/
-  exit(EXIT_FAILURE); /* should fail at line 24*/
+  mark_point();
+  #define LINENO_mark_lno _STR(__LINE__)
+#ifdef _POSIX_VERSION
+  exit(EXIT_FAILURE); /* should fail with mark_point above as line */
+#endif /* _POSIX_VERSION */
 }
-END_TEST
 
+END_TEST
 START_TEST(test_pass)
 {
   fail_unless(1 == 1, "This test should pass");
@@ -33,6 +33,7 @@ START_TEST(test_pass)
 }
 END_TEST
 
+/* FIXME: this should really be called test_fail_unless */
 START_TEST(test_fail)
 {
   fail_unless(1 == 2, "This test should fail");
@@ -58,26 +59,26 @@ START_TEST(test_fail_null_msg)
 }
 END_TEST
 
-
+#if defined(__GNUC__)
 START_TEST(test_fail_no_msg)
-{
-  fail_unless(4 == 5);
+{ /* taking out the NULL provokes an ISO C99 warning in GCC */
+  fail_unless(4 == 5, NULL);
 }
 END_TEST
-
+#endif /* __GNUC__ */
 START_TEST(test_fail_if_null_msg)
 {
   fail_if(2 != 3, NULL);
 }
 END_TEST
 
-
+#if defined(__GNUC__)
 START_TEST(test_fail_if_no_msg)
-{
-  fail_if(4 != 5);
+{ /* taking out the NULL provokes an ISO C99 warning in GCC */
+  fail_if(4 != 5, NULL);
 }
 END_TEST
-
+#endif /* __GNUC__ */
 START_TEST(test_fail_vararg_msg_1)
 {
   int x = 3;
@@ -102,29 +103,34 @@ START_TEST(test_fail_vararg_msg_3)
 }
 END_TEST
 
+#if defined(__GNUC__)
 START_TEST(test_fail_empty)
 { /* plain fail() doesn't compile with xlc in C mode because of `, ## __VA_ARGS__' problem */
+  /* on the other hand, taking out the NULL provokes an ISO C99 warning in GCC */
   fail(NULL);
 }
 END_TEST
+#endif /* __GNUC__ */
 
-/* FIXME: all these line numbers are kind of hard to maintain */
 START_TEST(test_ck_abort)
 {
-  ck_abort(); /* line 114 */
+  ck_abort();
+  #define LINENO_ck_abort _STR(__LINE__)
 }
 END_TEST
 
 START_TEST(test_ck_abort_msg)
 {
-  ck_abort_msg("Failure expected"); /* line 120 */
+  ck_abort_msg("Failure expected");
+  #define LINENO_ck_abort_msg _STR(__LINE__)
 }
 END_TEST
 
 /* FIXME: perhaps passing NULL to ck_abort_msg should be an error. */
 START_TEST(test_ck_abort_msg_null)
 {
-  ck_abort_msg(NULL); /* line 127 */
+  ck_abort_msg(NULL);
+  #define LINENO_ck_abort_msg_null _STR(__LINE__)
 }
 END_TEST
 
@@ -136,30 +142,17 @@ START_TEST(test_ck_assert)
   ck_assert(x == y);
   y++;
   ck_assert(x != y);
-  ck_assert(x == y); /* line 139 */
+  ck_assert(x == y);
+  #define LINENO_ck_assert _STR(__LINE__)
 }
 END_TEST
 
 START_TEST(test_ck_assert_null)
 {
-  ck_assert(0); /* line 145 */
+  ck_assert(0);
+  #define LINENO_ck_assert_null _STR(__LINE__)
 }
 END_TEST
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 START_TEST(test_ck_assert_int_eq)
 {
@@ -167,7 +160,8 @@ START_TEST(test_ck_assert_int_eq)
   int y = 3;
   ck_assert_int_eq(x, y);
   y++;
-  ck_assert_int_eq(x, y); /* line 170 */
+  ck_assert_int_eq(x, y);
+  #define LINENO_ck_assert_int_eq _STR(__LINE__)
 }
 END_TEST
 
@@ -177,7 +171,8 @@ START_TEST(test_ck_assert_int_ne)
   int y = 2;
   ck_assert_int_ne(x, y);
   y++;
-  ck_assert_int_ne(x, y); /* line 180 */
+  ck_assert_int_ne(x, y);
+  #define LINENO_ck_assert_int_ne _STR(__LINE__)
 }
 END_TEST
 
@@ -185,7 +180,8 @@ START_TEST(test_ck_assert_str_eq)
 {
   const char *s = "test2";
   ck_assert_str_eq("test2", s);
-  ck_assert_str_eq("test1", s); /* line 188 */
+  ck_assert_str_eq("test1", s);
+  #define LINENO_ck_assert_str_eq _STR(__LINE__)
 }
 END_TEST
 
@@ -195,37 +191,13 @@ START_TEST(test_ck_assert_str_ne)
   const char *t = "test1";
   ck_assert_str_ne(t, s);
   t = "test2";
-  ck_assert_str_ne(t, s); /* line 198 */
+  ck_assert_str_ne(t, s);
+  #define LINENO_ck_assert_str_ne _STR(__LINE__)
 }
 END_TEST
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-START_TEST(test_segv) /* line 228 */
+START_TEST(test_segv)
+  #define LINENO_segv _STR(__LINE__)
 {
   raise (SIGSEGV);
 }
@@ -253,7 +225,8 @@ START_TEST(test_mark_point)
 END_TEST
 
 #if TIMEOUT_TESTS_ENABLED
-START_TEST(test_eternal) /* line 256 */
+START_TEST(test_eternal)
+  #define LINENO_eternal _STR(__LINE__)
 {
   for (;;)
     ;
@@ -266,15 +239,24 @@ START_TEST(test_sleep2)
 }
 END_TEST
 
-START_TEST(test_sleep5) /* line 269 */
+START_TEST(test_sleep5)
+  #define LINENO_sleep5 _STR(__LINE__)
 {
   sleep(5);
 }
 END_TEST
 
-START_TEST(test_sleep8) /* line 275 */
+START_TEST(test_sleep9)
+  #define LINENO_sleep9 _STR(__LINE__)
 {
-  sleep(8);
+  sleep(9);
+}
+END_TEST
+
+START_TEST(test_sleep14)
+  #define LINENO_sleep14 _STR(__LINE__)
+{
+  sleep(14);
 }
 END_TEST
 #endif
@@ -311,14 +293,15 @@ START_TEST(test_null_2)
 }
 END_TEST
 
+#ifdef _POSIX_VERSION
 START_TEST(test_fork1p_pass)
 {
   pid_t pid;
-  
+
   if((pid = fork()) < 0) {
     fail("Failed to fork new process");
   } else if (pid > 0) {
-    fail_unless(1);
+    fail_unless(1, NULL);
     kill(pid, SIGKILL);
   } else {
     for (;;) {
@@ -354,7 +337,7 @@ START_TEST(test_fork1c_pass)
   } else if (pid > 0) {
     check_waitpid_and_exit(pid);
   } else {
-    fail_unless(1);
+    fail_unless(1, NULL);
     check_waitpid_and_exit(0);
   }
 }
@@ -385,7 +368,7 @@ START_TEST(test_fork2_pass)
     if((pid2 = check_fork()) < 0) {
       fail("Failed to fork new process");
     } else if (pid2 == 0) {
-      fail_unless(1);
+      fail_unless(1, NULL);
       check_waitpid_and_exit(0);
     }
     check_waitpid_and_exit(pid2);
@@ -414,6 +397,7 @@ START_TEST(test_fork2_fail)
   check_waitpid_and_exit(pid);
 }
 END_TEST
+#endif /* _POSIX_VERSION */
 
 START_TEST(test_srunner)
 {
@@ -421,21 +405,21 @@ START_TEST(test_srunner)
   SRunner *sr;
 
   s = suite_create("Check Servant3");
-  fail_unless(s != NULL);
+  fail_unless(s != NULL, NULL);
   sr = srunner_create(NULL);
-  fail_unless(sr != NULL);
+  fail_unless(sr != NULL, NULL);
   srunner_add_suite(sr, s);
   srunner_free(sr);
 
   sr = srunner_create(NULL);
-  fail_unless(sr != NULL);
+  fail_unless(sr != NULL, NULL);
   srunner_add_suite(sr, NULL);
   srunner_free(sr);
 
   s = suite_create("Check Servant3");
-  fail_unless(s != NULL);
+  fail_unless(s != NULL, NULL);
   sr = srunner_create(s);
-  fail_unless(sr != NULL);
+  fail_unless(sr != NULL, NULL);
   srunner_free(sr);
 }
 END_TEST
@@ -457,6 +441,103 @@ Suite *make_sub2_suite(void)
   return s;
 }
 
+void init_master_tests_lineno(void) {
+  const char * lineno[] = {
+/* Simple Tests */
+    LINENO_lno,
+    LINENO_mark_lno,
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    LINENO_ck_abort,
+    LINENO_ck_abort_msg,
+    LINENO_ck_abort_msg_null,
+    LINENO_ck_assert,
+    LINENO_ck_assert_null,
+    LINENO_ck_assert_int_eq,
+    LINENO_ck_assert_int_ne,
+    LINENO_ck_assert_str_eq,
+    LINENO_ck_assert_str_ne,
+
+/* Signal Tests */
+    "-1",
+    "-1",
+    LINENO_segv,
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+
+#if TIMEOUT_TESTS_ENABLED
+/* Timeout Tests */
+#if HAVE_WORKING_SETENV
+    LINENO_eternal,
+    "-1",
+    "-1",
+    LINENO_sleep9,
+#endif
+    LINENO_eternal,
+    "-1",
+    LINENO_sleep5,
+    LINENO_sleep9,
+    LINENO_eternal,
+    "-1",
+    "-1",
+    LINENO_sleep9,
+    LINENO_eternal,
+    "-1",
+    LINENO_sleep5,
+    LINENO_sleep9,
+#if HAVE_WORKING_SETENV
+    LINENO_eternal,
+    "-1",
+    "-1",
+    LINENO_sleep14,
+    LINENO_eternal,
+    "-1",
+    "-1",
+    LINENO_sleep9,
+    LINENO_eternal,
+    "-1",
+    "-1",
+    LINENO_sleep14,
+#endif
+#endif
+
+/* Limit Tests */
+    "-1",
+    "-1",
+    "-1",
+
+/* Msg and fork Tests */
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+    "-1",
+
+/* Core */
+    "-1",
+    "-1"
+  };
+  int s = sizeof lineno /sizeof lineno[0];
+  int i;
+
+  for (i = 0; i < s; i++) {
+    master_tests_lineno[i] = atoi(lineno[i]) - 1;
+  }
+}
+
 Suite *make_sub_suite(void)
 {
   Suite *s;
@@ -464,9 +545,16 @@ Suite *make_sub_suite(void)
   TCase *tc_simple;
   TCase *tc_signal;
 #if TIMEOUT_TESTS_ENABLED
+#if HAVE_WORKING_SETENV
   TCase *tc_timeout_env;
+#endif /* HAVE_WORKING_SETENV */
   TCase *tc_timeout;
   TCase *tc_timeout_usr;
+#if HAVE_WORKING_SETENV
+  TCase *tc_timeout_env_scale;
+  TCase *tc_timeout_scale;
+  TCase *tc_timeout_usr_scale;
+#endif /* HAVE_WORKING_SETENV */
 #endif
   TCase *tc_limit;
   TCase *tc_messaging_and_fork;
@@ -476,11 +564,22 @@ Suite *make_sub_suite(void)
   tc_simple = tcase_create("Simple Tests");
   tc_signal = tcase_create("Signal Tests");
 #if TIMEOUT_TESTS_ENABLED
+#if HAVE_WORKING_SETENV
   setenv("CK_DEFAULT_TIMEOUT", "6", 1);
   tc_timeout_env = tcase_create("Environment Timeout Tests");
   unsetenv("CK_DEFAULT_TIMEOUT");
+#endif /* HAVE_WORKING_SETENV */
   tc_timeout = tcase_create("Timeout Tests");
   tc_timeout_usr = tcase_create("User Timeout Tests");
+#if HAVE_WORKING_SETENV
+  setenv("CK_TIMEOUT_MULTIPLIER", "2", 1);
+  tc_timeout_scale = tcase_create("Timeout Scaling Tests");
+  tc_timeout_usr_scale = tcase_create("User Timeout Scaling Tests");
+  setenv("CK_DEFAULT_TIMEOUT", "6", 1);
+  tc_timeout_env_scale = tcase_create("Environment Timeout Scaling Tests");
+  unsetenv("CK_DEFAULT_TIMEOUT");
+  unsetenv("CK_TIMEOUT_MULTIPLIER");
+#endif
 #endif
   tc_limit = tcase_create("Limit Tests");
   tc_messaging_and_fork = tcase_create("Msg and fork Tests");
@@ -488,11 +587,18 @@ Suite *make_sub_suite(void)
   suite_add_tcase (s, tc_simple);
   suite_add_tcase (s, tc_signal);
 #if TIMEOUT_TESTS_ENABLED
+#if HAVE_WORKING_SETENV
   suite_add_tcase (s, tc_timeout_env);
+#endif /* HAVE_WORKING_SETENV */
   suite_add_tcase (s, tc_timeout);
   suite_add_tcase (s, tc_timeout_usr);
   /* Add a second time to make sure tcase_set_timeout doesn't contaminate it. */
   suite_add_tcase (s, tc_timeout);
+#if HAVE_WORKING_SETENV
+  suite_add_tcase (s, tc_timeout_env_scale);
+  suite_add_tcase (s, tc_timeout_scale);
+  suite_add_tcase (s, tc_timeout_usr_scale);
+#endif
 #endif
   suite_add_tcase (s, tc_limit);
   suite_add_tcase (s, tc_messaging_and_fork);
@@ -504,13 +610,19 @@ Suite *make_sub_suite(void)
   tcase_add_test (tc_simple, test_fail_if_pass);
   tcase_add_test (tc_simple, test_fail_if_fail);
   tcase_add_test (tc_simple, test_fail_null_msg);
+#if defined(__GNUC__)
   tcase_add_test (tc_simple, test_fail_no_msg);
+#endif /* __GNUC__ */
   tcase_add_test (tc_simple, test_fail_if_null_msg);
+#if defined(__GNUC__)
   tcase_add_test (tc_simple, test_fail_if_no_msg);
+#endif /* __GNUC__ */
   tcase_add_test (tc_simple, test_fail_vararg_msg_1);
   tcase_add_test (tc_simple, test_fail_vararg_msg_2);
   tcase_add_test (tc_simple, test_fail_vararg_msg_3);
+#if defined(__GNUC__)
   tcase_add_test (tc_simple, test_fail_empty);
+#endif /* __GNUC__ */
 
   tcase_add_test (tc_simple, test_ck_abort);
   tcase_add_test (tc_simple, test_ck_abort_msg);
@@ -531,33 +643,58 @@ Suite *make_sub_suite(void)
   tcase_add_test (tc_signal, test_mark_point);
 
 #if TIMEOUT_TESTS_ENABLED
+#if HAVE_WORKING_SETENV
   tcase_add_test (tc_timeout_env, test_eternal);
   tcase_add_test (tc_timeout_env, test_sleep2);
   tcase_add_test (tc_timeout_env, test_sleep5);
-  tcase_add_test (tc_timeout_env, test_sleep8);
+  tcase_add_test (tc_timeout_env, test_sleep9);
+#endif /* HAVE_WORKING_SETENV */
 
   tcase_add_test (tc_timeout, test_eternal);
   tcase_add_test (tc_timeout, test_sleep2);
   tcase_add_test (tc_timeout, test_sleep5);
-  tcase_add_test (tc_timeout, test_sleep8);
+  tcase_add_test (tc_timeout, test_sleep9);
 
   tcase_set_timeout (tc_timeout_usr, 6);
   tcase_add_test (tc_timeout_usr, test_eternal);
   tcase_add_test (tc_timeout_usr, test_sleep2);
   tcase_add_test (tc_timeout_usr, test_sleep5);
-  tcase_add_test (tc_timeout_usr, test_sleep8);
+  tcase_add_test (tc_timeout_usr, test_sleep9);
+#if HAVE_WORKING_SETENV
+  tcase_add_test (tc_timeout_env_scale, test_eternal);
+  tcase_add_test (tc_timeout_env_scale, test_sleep5);
+  tcase_add_test (tc_timeout_env_scale, test_sleep9);
+  tcase_add_test (tc_timeout_env_scale, test_sleep14);
+  tcase_add_test (tc_timeout_scale, test_eternal);
+  tcase_add_test (tc_timeout_scale, test_sleep2);
+  tcase_add_test (tc_timeout_scale, test_sleep5);
+  tcase_add_test (tc_timeout_scale, test_sleep9);
+  setenv("CK_TIMEOUT_MULTIPLIER", "2", 1);
+  tcase_set_timeout (tc_timeout_usr_scale, 6);
+  unsetenv("CK_TIMEOUT_MULTIPLIER");
+  tcase_add_test (tc_timeout_usr_scale, test_eternal);
+  tcase_add_test (tc_timeout_usr_scale, test_sleep5);
+  tcase_add_test (tc_timeout_usr_scale, test_sleep9);
+  tcase_add_test (tc_timeout_usr_scale, test_sleep14);
+#endif
+#if 0
+  tcase_set_timeout (tc_timeout_kill, 2);
+  tcase_add_test (tc_timeout_kill, test_sleep);
+#endif
 #endif
 
   tcase_add_test (tc_limit, test_early_exit);
   tcase_add_test (tc_limit, test_null);
   tcase_add_test (tc_limit, test_null_2);
 
+#ifdef _POSIX_VERSION
   tcase_add_test (tc_messaging_and_fork, test_fork1p_pass);
   tcase_add_test (tc_messaging_and_fork, test_fork1p_fail);
   tcase_add_test (tc_messaging_and_fork, test_fork1c_pass);
   tcase_add_test (tc_messaging_and_fork, test_fork1c_fail);
   tcase_add_test (tc_messaging_and_fork, test_fork2_pass);
   tcase_add_test (tc_messaging_and_fork, test_fork2_fail);
+#endif /* _POSIX_VERSION */
 
   return s;
 }

@@ -3,7 +3,12 @@
 
 # Prelude.
 AC_PREREQ([2.59])
-AC_INIT([Check], [0.9.5], [check-devel at lists dot sourceforge dot net])
+
+AC_INIT([Check], [0.9.8], [check-devel at lists dot sourceforge dot net])
+CHECK_MAJOR_VERSION=0
+CHECK_MINOR_VERSION=9
+CHECK_MICRO_VERSION=8
+CHECK_VERSION=$CHECK_MAJOR_VERSION.$CHECK_MINOR_VERSION.$CHECK_MICRO_VERSION
 
 # unique source file --- primitive safety check 
 AC_CONFIG_SRCDIR([src/check.c])
@@ -11,18 +16,19 @@ AC_CONFIG_SRCDIR([src/check.c])
 # place where extra autoconf macros are kept
 AC_CONFIG_MACRO_DIR([m4])
 
+# place where portability library functions are kept
+AC_CONFIG_LIBOBJ_DIR([lib])
+
 # place to put some extra build scripts installed
 AC_CONFIG_AUX_DIR([build-aux])
+
+# define things like _GNU_SOURCE appropriately
+AC_USE_SYSTEM_EXTENSIONS
 
 # really severe build strictness
 AM_INIT_AUTOMAKE([-Wall -Werror gnits 1.9.6])
 
 # FIXME: find the other places this stuff is used
-
-CHECK_MAJOR_VERSION=0
-CHECK_MINOR_VERSION=9
-CHECK_MICRO_VERSION=5
-CHECK_VERSION=$CHECK_MAJOR_VERSION.$CHECK_MINOR_VERSION.$CHECK_MICRO_VERSION
 
 AC_SUBST(CHECK_MAJOR_VERSION)
 AC_SUBST(CHECK_MINOR_VERSION)
@@ -68,6 +74,26 @@ esac], [enable_timeout_tests=true ])
 
 AM_CONDITIONAL(NO_TIMEOUT_TESTS, test x"$enable_timeout_tests" = "xfalse")
 
+AC_ARG_ENABLE(subunit,
+AC_HELP_STRING([--enable-subunit],
+	       [enable support for the subunit test protocol @<:@default=autodetect@:>@]),
+[case "${enableval}" in
+  yes)
+    enable_subunit=true
+    echo "Enabled subunit support"
+    ;;
+  no)
+    enable_subunit=false
+    echoo "Disabled subunit support"
+    ;;
+  autodetect)
+    echo "Subunit support will enable automatically."
+    ;;
+  *)   AC_MSG_ERROR(bad value ${enableval} for --enable-subunit) ;;
+esac], 
+[echo "Subunit support will enable automatically."
+ enable_subunit=autodetect])
+
 # Checks for programs.
 AC_PROG_AWK
 AC_PROG_CC
@@ -79,7 +105,7 @@ AC_PROG_LIBTOOL
 
 # add these options to CFLAGS if the compiler supports them
 AC_DEFUN([AX_CFLAGS_ADD],[AX_C_CHECK_FLAG($1, , , CFLAGS="$CFLAGS $1")])
-AX_CFLAGS_ADD([-Wall])
+AX_CFLAGS_WARN_ALL_ANSI
 AX_CFLAGS_ADD([-Wextra])
 AX_CFLAGS_ADD([-Wstrict-prototypes])
 AX_CFLAGS_ADD([-Wmissing-prototypes])
@@ -89,6 +115,13 @@ AX_CFLAGS_ADD([-Wno-variadic-macros])
 AC_CHECK_PROGS(GCOV, gcov, false)
 AC_CHECK_PROGS(LCOV, lcov, false)
 AC_CHECK_PROGS(GENHTML, genhtml, false)
+AC_CHECK_PROGS(TEX, tex, false)
+if test -n "$TEX"; then
+    # Make it [somewhat] clear to maintainers that tex is missing. Not an error
+    # though because 'make install' (which users need) does not build the docs
+    # anyway.
+    AC_MSG_WARN(tex not installed: cannot rebuild HTML documentation.)
+fi
 
 # Checks for libraries.
 
@@ -96,6 +129,42 @@ AC_CHECK_PROGS(GENHTML, genhtml, false)
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([fcntl.h stddef.h stdint.h stdlib.h string.h sys/time.h unistd.h])
+
+if test xfalse != x"$enable_subunit"; then
+AC_CHECK_LIB(subunit, subunit_test_start, ,
+[case "$enable_subunit" in
+ autodetect)
+   enable_subunit=false
+   ;;
+ true)
+   AC_MSG_ERROR([libsubunit is required for subunit protocol support. The homepage for subunit is https://launchpad.net/subunit/])
+   ;;
+ esac
+])
+fi
+if test xfalse != x"$enable_subunit"; then
+AC_CHECK_HEADER([subunit/child.h], ,
+[case "$enable_subunit" in
+ autodetect)
+   enable_subunit=false
+   ;;
+ true)
+   AC_MSG_ERROR([The header subunit/child.h could not be succesfully included and is required for subunit protocol support. The homepage for subunit is https://launchpad.net/subunit/])
+   ;;
+ esac
+])
+fi
+if test xfalse = x"$enable_subunit"; then
+ENABLE_SUBUNIT="0"
+else
+ENABLE_SUBUNIT="1"
+fi
+AC_SUBST(ENABLE_SUBUNIT)
+AC_DEFINE_UNQUOTED(ENABLE_SUBUNIT, $ENABLE_SUBUNIT, [Subunit protocol result output])
+
+AM_CONDITIONAL(SUBUNIT, test x"$enable_subunit" != "xfalse")
+
+
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -109,12 +178,14 @@ AC_CHECK_SIZEOF(short, 2)
 AC_CHECK_SIZEOF(long, 4)
 
 # Checks for library functions.
-AC_FUNC_FORK
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
-AC_FUNC_STRFTIME
-AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([alarm gettimeofday localtime_r memmove memset putenv setenv strdup strerror strrchr strstr])
+AC_REPLACE_FUNCS([fileno localtime_r pipe putenv setenv sleep strdup strsignal unsetenv])
+AC_CHECK_DECLS([fileno, localtime_r, pipe, putenv, setenv, sleep, strdup, strsignal, unsetenv])
+
+# Checks for pthread implementation.
+ACX_PTHREAD
+CC="$PTHREAD_CC"
 
 # Output files
 AC_CONFIG_HEADERS([config.h])
@@ -122,8 +193,10 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([check.pc
                  Makefile
 		 doc/Makefile
+		 lib/Makefile
                  src/check.h
                  src/Makefile
-                 tests/Makefile])
+                 tests/Makefile
+		 tests/test_vars])
 
 AC_OUTPUT
