@@ -188,7 +188,7 @@ ACX_PTHREAD
 CC="$PTHREAD_CC"
 
 # Check for whether we can install checkmk (we have a usable awk)
-AC_ARG_VAR(AWK_PATH)
+AC_ARG_VAR([AWK_PATH],[Awk interpreter command])
 AC_PATH_PROG(AWK_PATH, $AWK, [*NO AWK*])
 AM_CONDITIONAL([INSTALL_CHECKMK], [test "x$AWK_PATH" != 'x*NO AWK*'])
 AS_IF([test "x$AWK_PATH" = 'x*NO AWK*'],
