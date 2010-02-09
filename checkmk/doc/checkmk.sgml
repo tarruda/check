@@ -587,15 +587,7 @@ int main(void)
 
     <para><command>checkmk</command> and this manual were written
     by Micah J Cowan.</para>
-
-    <para>The Check unit test framework for C-language programs was
-    written by Arien Malec &lt;arien_malec@yahoo.com&gt;</para>
     
-    <para>This manual was written for checkmk 1.0.0. It
-    is distributable under the same terms
-    as <command>checkmk</command>, which uses an equivalent to the
-    "modified" BSD license.</para>
-
-    <para>Copyright (C) 2006 Micah J Cowan.</para>
+    <para>Copyright (C) 2006, 2010 Micah J Cowan.</para>
   </refsect1>
 </refentry>

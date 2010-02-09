@@ -1,20 +1,14 @@
-==============
-checkmk v1.0.0
-==============
+=======
+checkmk
+=======
 
 Written by Micah J Cowan.
 
 Translates concise versions of test suites into C programs
 suitable suitable for use with the Check unit test framework.
 
-Up-to-date versions of and information on this tool are available at
-<http://micah.cowan.name/projects/checkmk/>.
-
-This tool is intended for use with Arien Malec's Check unit test
-framework, which is available at <http://check.sourceforge.net/>.
-
 See the source code in checkmk.in (checkmk when installed) for terms of
-distribution.
+distribution (scaled-down version of the modified BSD license).
 
 To see how it works, try running checkmk on the example files,
 basic_complete.ts and multiple_everything.ts:
