@@ -1,3 +1,0 @@
-# defined to 1 if subunit is enabled
-ENABLE_SUBUNIT=@ENABLE_SUBUNIT@
-export ENABLE_SUBUNIT
